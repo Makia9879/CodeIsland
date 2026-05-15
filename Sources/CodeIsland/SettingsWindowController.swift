@@ -23,8 +23,7 @@ class SettingsWindowController {
         NSApp.applicationIconImage = Self.bundleAppIcon()
 
         if let window = window {
-            window.makeKeyAndOrderFront(nil)
-            NSApp.activate(ignoringOtherApps: true)
+            bringToFront(window)
             return
         }
 
@@ -48,11 +47,11 @@ class SettingsWindowController {
         window.backgroundColor = .windowBackgroundColor
         window.contentView = hostingView
         window.contentMinSize = NSSize(width: min(560, screenW * 0.4), height: min(420, screenH * 0.4))
+        window.collectionBehavior.insert(.moveToActiveSpace)
         window.toolbar = nil
         window.center()
         window.isReleasedWhenClosed = false
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        bringToFront(window)
 
         // Revert to accessory policy after close without hiding the entire app.
         // Hiding here causes the panel to blink even though only the settings
@@ -71,6 +70,27 @@ class SettingsWindowController {
         }
 
         self.window = window
+    }
+
+    private func bringToFront(_ window: NSWindow) {
+        if window.isMiniaturized {
+            window.deminiaturize(nil)
+        }
+        window.collectionBehavior.insert(.moveToActiveSpace)
+        window.orderFrontRegardless()
+        NSRunningApplication.current.activate(options: [.activateAllWindows])
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+
+        // Re-assert on the next run-loop turn. Changing an accessory app to
+        // regular activation can lag behind the first order-front request,
+        // especially when opening settings from the non-activating panel.
+        DispatchQueue.main.async { [weak window] in
+            guard let window else { return }
+            window.orderFrontRegardless()
+            NSRunningApplication.current.activate(options: [.activateAllWindows])
+            window.makeKeyAndOrderFront(nil)
+        }
     }
 
     static func bundleAppIcon() -> NSImage {
