@@ -1040,7 +1040,15 @@ struct ConfigInstaller {
                 // — otherwise long-running PermissionRequest hooks hang the agent (#103).
                 entry = ["matcher": "*", "hooks": [["type": "command", "command": baseCommand, "timeout": timeout] as [String: Any]]]
             case .nested:
-                entry = ["hooks": [["type": "command", "command": baseCommand, "timeout": timeout] as [String: Any]]]
+                var hook: [String: Any] = ["type": "command", "command": baseCommand, "timeout": timeout]
+                if cli.source == "codex" {
+                    hook["statusMessage"] = "Updating CodeIsland"
+                }
+                var nestedEntry: [String: Any] = ["hooks": [hook]]
+                if cli.source == "codex", codexEventSupportsMatcher(event) {
+                    nestedEntry["matcher"] = "*"
+                }
+                entry = nestedEntry
             case .flat:
                 entry = ["command": "\(baseCommand) --event \(event)"]
             case .traecli:
@@ -1095,6 +1103,15 @@ struct ConfigInstaller {
             value: hooks,
             fm: fm
         )
+    }
+
+    private static func codexEventSupportsMatcher(_ event: String) -> Bool {
+        switch event {
+        case "PreToolUse", "PostToolUse", "PermissionRequest":
+            return true
+        default:
+            return false
+        }
     }
 
     private static func managedTraecliHookObject(source: String = "traecli") -> [String: Any] {

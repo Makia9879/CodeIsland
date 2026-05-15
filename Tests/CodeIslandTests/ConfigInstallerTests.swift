@@ -124,6 +124,48 @@ final class ConfigInstallerTests: XCTestCase {
         XCTAssertTrue(command.contains("--event stop"))
     }
 
+    func testCodexHooksUseCurrentCommandHookShape() throws {
+        let fm = FileManager.default
+        let tempDir = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try fm.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tempDir) }
+
+        let configPath = tempDir.appendingPathComponent("hooks.json").path
+        let cli = CLIConfig(
+            name: "Codex",
+            source: "codex",
+            configPath: configPath,
+            configKey: "hooks",
+            format: .nested,
+            events: [
+                ("PreToolUse", 5, false),
+                ("PermissionRequest", 86400, false),
+                ("Stop", 5, false),
+            ]
+        )
+
+        XCTAssertTrue(ConfigInstaller.installExternalHooks(cli: cli, fm: fm))
+
+        let data = try XCTUnwrap(fm.contents(atPath: configPath))
+        let root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let hooks = try XCTUnwrap(root["hooks"] as? [String: Any])
+
+        let preToolUseEntries = try XCTUnwrap(hooks["PreToolUse"] as? [[String: Any]])
+        XCTAssertEqual(preToolUseEntries.first?["matcher"] as? String, "*")
+        let preToolUseHandlers = try XCTUnwrap(preToolUseEntries.first?["hooks"] as? [[String: Any]])
+        XCTAssertEqual(preToolUseHandlers.first?["type"] as? String, "command")
+        XCTAssertTrue((preToolUseHandlers.first?["command"] as? String)?.contains("codeisland-bridge --source codex") ?? false)
+        XCTAssertEqual(preToolUseHandlers.first?["statusMessage"] as? String, "Updating CodeIsland")
+
+        let permissionEntries = try XCTUnwrap(hooks["PermissionRequest"] as? [[String: Any]])
+        XCTAssertEqual(permissionEntries.first?["matcher"] as? String, "*")
+
+        let stopEntries = try XCTUnwrap(hooks["Stop"] as? [[String: Any]])
+        XCTAssertNil(stopEntries.first?["matcher"])
+        let stopHandlers = try XCTUnwrap(stopEntries.first?["hooks"] as? [[String: Any]])
+        XCTAssertEqual(stopHandlers.first?["statusMessage"] as? String, "Updating CodeIsland")
+    }
+
     // MARK: - Kimi Code CLI TOML hooks
 
     func testRemoveKimiHooksPreservesNonCodeIslandBlocks() {
