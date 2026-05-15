@@ -80,8 +80,12 @@ enum SettingsKey {
     // Tool status display
     static let showToolStatus = "showToolStatus"              // true = detailed, false = simple
 
-    // Island collapsed width scale (percentage: 50–150, default 100)
+    // Legacy island collapsed width scale (percentage: 50–150, default 100)
     static let collapsedWidthScale = "collapsedWidthScale"
+    // Collapsed island core width on notchless displays (points)
+    static let notchlessCollapsedWidth = "notchlessCollapsedWidth"
+    // Maximum top-bar width during hover preview (points)
+    static let hoverPreviewWidthLimit = "hoverPreviewWidthLimit"
 
     // Default mascot source when no sessions exist (falls back to this instead of always "claude")
     static let defaultSource = "defaultSource"
@@ -149,6 +153,8 @@ struct SettingsDefaults {
     static let showToolStatus = true
 
     static let collapsedWidthScale = 100  // percentage
+    static let notchlessCollapsedWidth = 200
+    static let hoverPreviewWidthLimit = 420
 
     static let defaultSource = "claude"
 
@@ -214,6 +220,8 @@ class SettingsManager {
             SettingsKey.sessionGroupingMode: SettingsDefaults.sessionGroupingMode,
             SettingsKey.showToolStatus: SettingsDefaults.showToolStatus,
             SettingsKey.collapsedWidthScale: SettingsDefaults.collapsedWidthScale,
+            SettingsKey.notchlessCollapsedWidth: SettingsDefaults.notchlessCollapsedWidth,
+            SettingsKey.hoverPreviewWidthLimit: SettingsDefaults.hoverPreviewWidthLimit,
             SettingsKey.esp32BridgeEnabled: SettingsDefaults.esp32BridgeEnabled,
             SettingsKey.esp32HeartbeatSeconds: SettingsDefaults.esp32HeartbeatSeconds,
             SettingsKey.buddyScreenBrightnessPercent: SettingsDefaults.buddyScreenBrightnessPercent,

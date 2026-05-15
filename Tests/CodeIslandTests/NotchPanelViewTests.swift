@@ -2,28 +2,71 @@ import XCTest
 @testable import CodeIsland
 
 final class NotchPanelViewTests: XCTestCase {
-    func testEffectiveNotchWidthAppliesCollapsedWidthScale() {
+    func testCollapsedCoreWidthUsesPhysicalNotchOnNotchedDisplays() {
         XCTAssertEqual(
-            NotchWidthMetrics.effectiveNotchWidth(notchW: 200, collapsedWidthScale: 50),
-            100,
-            accuracy: 0.001
-        )
-        XCTAssertEqual(
-            NotchWidthMetrics.effectiveNotchWidth(notchW: 200, collapsedWidthScale: 150),
-            300,
+            NotchWidthMetrics.collapsedCoreWidth(
+                notchW: 210,
+                hasNotch: true,
+                notchlessCollapsedWidth: 300
+            ),
+            210,
             accuracy: 0.001
         )
     }
 
-    func testEffectiveNotchWidthClampsOutOfRangeScale() {
+    func testCollapsedCoreWidthUsesSettingOnNotchlessDisplays() {
         XCTAssertEqual(
-            NotchWidthMetrics.effectiveNotchWidth(notchW: 200, collapsedWidthScale: 10),
-            100,
+            NotchWidthMetrics.collapsedCoreWidth(
+                notchW: 210,
+                hasNotch: false,
+                notchlessCollapsedWidth: 260
+            ),
+            260,
+            accuracy: 0.001
+        )
+    }
+
+    func testCollapsedCoreWidthClampsNotchlessSetting() {
+        XCTAssertEqual(
+            NotchWidthMetrics.collapsedCoreWidth(
+                notchW: 210,
+                hasNotch: false,
+                notchlessCollapsedWidth: 20
+            ),
+            NotchWidthMetrics.minNotchlessCollapsedWidth,
             accuracy: 0.001
         )
         XCTAssertEqual(
-            NotchWidthMetrics.effectiveNotchWidth(notchW: 200, collapsedWidthScale: 250),
-            300,
+            NotchWidthMetrics.collapsedCoreWidth(
+                notchW: 210,
+                hasNotch: false,
+                notchlessCollapsedWidth: 900
+            ),
+            NotchWidthMetrics.maxNotchlessCollapsedWidth,
+            accuracy: 0.001
+        )
+    }
+
+    func testHoverPreviewWidthCannotBeLessThanRestingWidth() {
+        XCTAssertEqual(
+            NotchWidthMetrics.hoverPreviewPanelWidth(
+                restingPanelWidth: 360,
+                hoverPreviewWidthLimit: 260,
+                screenWidth: 900
+            ),
+            360,
+            accuracy: 0.001
+        )
+    }
+
+    func testHoverPreviewWidthClampsToScreen() {
+        XCTAssertEqual(
+            NotchWidthMetrics.hoverPreviewPanelWidth(
+                restingPanelWidth: 300,
+                hoverPreviewWidthLimit: 700,
+                screenWidth: 520
+            ),
+            480,
             accuracy: 0.001
         )
     }

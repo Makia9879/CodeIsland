@@ -2,9 +2,40 @@ import SwiftUI
 import CodeIslandCore
 
 enum NotchWidthMetrics {
-    static func effectiveNotchWidth(notchW: CGFloat, collapsedWidthScale: Int) -> CGFloat {
-        let clampedScale = max(50, min(collapsedWidthScale, 150))
-        return notchW * CGFloat(clampedScale) / 100.0
+    static let minNotchlessCollapsedWidth: CGFloat = 140
+    static let maxNotchlessCollapsedWidth: CGFloat = 360
+    static let minHoverPreviewWidthLimit: CGFloat = 220
+    static let maxHoverPreviewWidthLimit: CGFloat = 620
+
+    static func collapsedCoreWidth(
+        notchW: CGFloat,
+        hasNotch: Bool,
+        notchlessCollapsedWidth: Int
+    ) -> CGFloat {
+        if hasNotch { return notchW }
+        return clamp(
+            CGFloat(notchlessCollapsedWidth),
+            min: minNotchlessCollapsedWidth,
+            max: maxNotchlessCollapsedWidth
+        )
+    }
+
+    static func hoverPreviewPanelWidth(
+        restingPanelWidth: CGFloat,
+        hoverPreviewWidthLimit: Int,
+        screenWidth: CGFloat
+    ) -> CGFloat {
+        let screenMax = max(restingPanelWidth, screenWidth - 40)
+        let limit = clamp(
+            CGFloat(hoverPreviewWidthLimit),
+            min: minHoverPreviewWidthLimit,
+            max: min(maxHoverPreviewWidthLimit, screenMax)
+        )
+        return min(max(restingPanelWidth, limit), screenMax)
+    }
+
+    private static func clamp(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
+        Swift.max(minValue, Swift.min(value, maxValue))
     }
 }
 
@@ -20,13 +51,15 @@ struct NotchPanelView: View {
     @AppStorage(SettingsKey.smartSuppress) private var smartSuppress = SettingsDefaults.smartSuppress
     @AppStorage(SettingsKey.hideWhenNoSession) private var hideWhenNoSession = SettingsDefaults.hideWhenNoSession
     @AppStorage(SettingsKey.showToolStatus) private var showToolStatus = SettingsDefaults.showToolStatus
-    @AppStorage(SettingsKey.collapsedWidthScale) private var collapsedWidthScale = SettingsDefaults.collapsedWidthScale
+    @AppStorage(SettingsKey.notchlessCollapsedWidth) private var notchlessCollapsedWidth = SettingsDefaults.notchlessCollapsedWidth
+    @AppStorage(SettingsKey.hoverPreviewWidthLimit) private var hoverPreviewWidthLimit = SettingsDefaults.hoverPreviewWidthLimit
     @AppStorage(SettingsKey.hapticOnHover) private var hapticOnHover = SettingsDefaults.hapticOnHover
     @AppStorage(SettingsKey.hapticIntensity) private var hapticIntensity = SettingsDefaults.hapticIntensity
 
     /// Delayed hover: prevents accidental expansion when mouse passes through
     @State private var hoverTimer: Timer?
     @State private var isHovered = false
+    @State private var isHoverPreviewing = false
     @State private var idleHovered = false
     /// Curtain animation for tool status toggle
     @State private var curtainOffset: CGFloat = 0
@@ -53,17 +86,18 @@ struct NotchPanelView: View {
     /// Minimum wing width needed to display compact bar content
     private var compactWingWidth: CGFloat { mascotSize + 14 }
 
-    /// Effective island width — applies user scale on both notch and non-notch screens.
-    private var effectiveNotchW: CGFloat {
-        NotchWidthMetrics.effectiveNotchWidth(
+    /// Core island width: physical notch on notched displays, user setting on notchless displays.
+    private var collapsedCoreWidth: CGFloat {
+        NotchWidthMetrics.collapsedCoreWidth(
             notchW: notchW,
-            collapsedWidthScale: collapsedWidthScale
+            hasNotch: hasNotch,
+            notchlessCollapsedWidth: notchlessCollapsedWidth
         )
     }
 
     /// Total panel width — adapts based on state and screen geometry
     private var panelWidth: CGFloat {
-        let nw = effectiveNotchW
+        let nw = collapsedCoreWidth
         let maxWidth = min(620, screenWidth - 40)
         if showIdleIndicator { return idleHovered ? nw + compactWingWidth * 2 + 80 : nw + compactWingWidth * 2 }
         if !isActive { return hasNotch ? nw - 20 : nw }
@@ -72,7 +106,15 @@ struct NotchPanelView: View {
         let extra: CGFloat = appState.status == .idle ? 0 : 20
         // Reserve space for tool status — proportional to screen width
         let toolExtra: CGFloat = displayedToolStatus ? (hasNotch ? screenWidth * 0.03 : screenWidth * 0.04) : 0
-        return nw + wing * 2 + extra + toolExtra
+        let restingWidth = nw + wing * 2 + extra + toolExtra
+        if isHoverPreviewing {
+            return NotchWidthMetrics.hoverPreviewPanelWidth(
+                restingPanelWidth: restingWidth,
+                hoverPreviewWidthLimit: hoverPreviewWidthLimit,
+                screenWidth: screenWidth
+            )
+        }
+        return restingWidth
     }
 
     var body: some View {
@@ -83,9 +125,13 @@ struct NotchPanelView: View {
                     HStack(spacing: 0) {
                         CompactLeftWing(appState: appState, expanded: shouldShowExpanded, mascotSize: mascotSize, hasNotch: hasNotch, showToolStatus: showToolStatus)
                         if hasNotch && !shouldShowExpanded {
-                            Spacer(minLength: effectiveNotchW)
+                            Spacer(minLength: collapsedCoreWidth)
+                            if isHoverPreviewing && showToolStatus {
+                                CompactToolStatus(appState: appState, previewing: true)
+                                Spacer(minLength: 0)
+                            }
                         } else if !shouldShowExpanded && showToolStatus {
-                            CompactToolStatus(appState: appState)
+                            CompactToolStatus(appState: appState, previewing: isHoverPreviewing)
                             Spacer(minLength: 0)
                         } else {
                             Spacer(minLength: 0)
@@ -97,7 +143,7 @@ struct NotchPanelView: View {
                     IdleIndicatorBar(
                         mascotSize: mascotSize,
                         compactWingWidth: compactWingWidth,
-                        notchW: effectiveNotchW,
+                        notchW: collapsedCoreWidth,
                         notchHeight: notchHeight,
                         hasNotch: hasNotch,
                         hovered: idleHovered
@@ -238,6 +284,7 @@ struct NotchPanelView: View {
                         // Mouse entered then left — allow collapse (immediate or deferred)
                         hoverTimer?.invalidate()
                         hoverTimer = nil
+                        isHoverPreviewing = false
                         appState.deferCollapseOnMouseLeave = false
                         appState.cancelCompletionQueue()
                         withAnimation(NotchAnimation.close) {
@@ -248,39 +295,35 @@ struct NotchPanelView: View {
                 default: break
                 }
                 // Respect collapseOnMouseLeave setting
-                if !hovering && !SettingsManager.shared.collapseOnMouseLeave { return }
-                // Smart suppress: don't auto-expand when active session's terminal is foreground
-                if hovering && smartSuppress {
-                    if let delegate = NSApp.delegate as? AppDelegate,
-                       let pc = delegate.panelController,
-                       pc.isActiveTerminalForeground() {
-                        return
-                    }
+                if !hovering && !SettingsManager.shared.collapseOnMouseLeave {
+                    isHovered = false
+                    withAnimation(NotchAnimation.micro) { isHoverPreviewing = false }
+                    hoverTimer?.invalidate()
+                    hoverTimer = nil
+                    return
                 }
-
                 isHovered = hovering
                 if hovering {
-                    // Delay expansion to avoid accidental triggers
+                    withAnimation(NotchAnimation.micro) { isHoverPreviewing = true }
+                    triggerHoverHapticIfNeeded()
+                    // Smart suppress blocks the full panel only; the lightweight
+                    // hover preview still gives feedback without stealing focus.
+                    if smartSuppress,
+                       let delegate = NSApp.delegate as? AppDelegate,
+                       let pc = delegate.panelController,
+                       pc.isActiveTerminalForeground() {
+                        hoverTimer?.invalidate()
+                        hoverTimer = nil
+                        return
+                    }
+                    // Hover preview is immediate; full panel expansion waits for a longer dwell.
                     hoverTimer?.invalidate()
-                    hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: false) { _ in
+                    hoverTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { _ in
                         Task { @MainActor in
                             // Guard: mouse may have left during the delay
                             guard isHovered else { return }
-                            if hapticOnHover {
-                                let performer = NSHapticFeedbackManager.defaultPerformer
-                                switch hapticIntensity {
-                                case 3: // strong: two taps
-                                    performer.perform(.levelChange, performanceTime: .now)
-                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
-                                        performer.perform(.levelChange, performanceTime: .now)
-                                    }
-                                case 2: // medium
-                                    performer.perform(.levelChange, performanceTime: .default)
-                                default: // light
-                                    performer.perform(.alignment, performanceTime: .default)
-                                }
-                            }
                             withAnimation(NotchAnimation.open) {
+                                isHoverPreviewing = false
                                 appState.surface = .sessionList
                                 appState.cancelCompletionQueue()
                                 if appState.activeSessionId == nil {
@@ -296,6 +339,7 @@ struct NotchPanelView: View {
                         Task { @MainActor in
                             guard !isHovered else { return }
                             withAnimation(NotchAnimation.close) {
+                                isHoverPreviewing = false
                                 appState.surface = .collapsed
                             }
                         }
@@ -308,6 +352,22 @@ struct NotchPanelView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .animation(NotchAnimation.open, value: appState.surface)
+    }
+
+    private func triggerHoverHapticIfNeeded() {
+        guard hapticOnHover else { return }
+        let performer = NSHapticFeedbackManager.defaultPerformer
+        switch hapticIntensity {
+        case 3:
+            performer.perform(.levelChange, performanceTime: .now)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                performer.perform(.levelChange, performanceTime: .now)
+            }
+        case 2:
+            performer.perform(.levelChange, performanceTime: .default)
+        default:
+            performer.perform(.alignment, performanceTime: .default)
+        }
     }
 }
 
@@ -507,6 +567,7 @@ private func toolStatusColor(_ tool: String) -> Color {
 /// Keeps the last tool visible for a short linger period to avoid flashing.
 private struct CompactToolStatus: View {
     var appState: AppState
+    var previewing: Bool = false
 
     /// Single source of truth: all fields derive from the same session.
     private var displaySessionId: String? {
@@ -522,6 +583,14 @@ private struct CompactToolStatus: View {
     private var projectName: String? {
         guard let cwd = displaySession?.cwd, !cwd.isEmpty else { return nil }
         return (cwd as NSString).lastPathComponent
+    }
+    private var sessionTitle: String? {
+        let title = displaySession?.sessionTitle ?? displaySession?.lastUserPrompt
+        let trimmed = title?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed?.isEmpty == false ? trimmed : nil
+    }
+    private var workingDirectory: String? {
+        displaySession?.cwd
     }
 
     @State private var shownTool: String?
@@ -542,15 +611,6 @@ private struct CompactToolStatus: View {
 
     var body: some View {
         HStack(spacing: 5) {
-            // Project name — shown whenever the session is not idle
-            if isWorking, let project = projectName {
-                Text(project)
-                    .foregroundStyle(.white.opacity(0.8))
-                    .id("center-project-\(displaySessionId ?? "")")
-                    .transition(.opacity)
-            }
-
-            // Tool status or thinking indicator
             if let tool = shownTool {
                 TypingIndicator(fontSize: 11, label: tool, bright: true, color: toolStatusColor(tool))
                     .id("tool-\(tool)-\(appState.rotatingSessionId ?? "")")
@@ -565,6 +625,27 @@ private struct CompactToolStatus: View {
             } else if displayStatus == .processing {
                 TypingIndicator(fontSize: 11, label: "thinking", bright: true)
                     .id("thinking-\(appState.rotatingSessionId ?? "")")
+            }
+
+            if let title = sessionTitle {
+                Text(title)
+                    .foregroundStyle(.white.opacity(previewing ? 0.82 : 0.68))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                    .layoutPriority(previewing ? 1 : 0)
+            } else if isWorking, let project = projectName {
+                Text(project)
+                    .foregroundStyle(.white.opacity(0.8))
+                    .id("center-project-\(displaySessionId ?? "")")
+                    .lineLimit(1)
+                    .transition(.opacity)
+            }
+
+            if previewing, let cwd = workingDirectory {
+                Text(cwd)
+                    .foregroundStyle(.white.opacity(0.42))
+                    .lineLimit(1)
+                    .truncationMode(.head)
             }
         }
         .font(.system(size: 11, weight: .medium, design: .monospaced))

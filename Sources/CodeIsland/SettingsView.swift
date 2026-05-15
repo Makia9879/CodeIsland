@@ -785,9 +785,36 @@ private struct AppearancePage: View {
     @AppStorage(SettingsKey.aiMessageLines) private var aiMessageLines = SettingsDefaults.aiMessageLines
     @AppStorage(SettingsKey.showAgentDetails) private var showAgentDetails = SettingsDefaults.showAgentDetails
     @AppStorage(SettingsKey.showToolStatus) private var showToolStatus = SettingsDefaults.showToolStatus
-    @AppStorage(SettingsKey.collapsedWidthScale) private var collapsedWidthScale = SettingsDefaults.collapsedWidthScale
+    @AppStorage(SettingsKey.notchlessCollapsedWidth) private var notchlessCollapsedWidth = SettingsDefaults.notchlessCollapsedWidth
+    @AppStorage(SettingsKey.hoverPreviewWidthLimit) private var hoverPreviewWidthLimit = SettingsDefaults.hoverPreviewWidthLimit
     @AppStorage(SettingsKey.notchHeightMode) private var notchHeightModeRaw = SettingsDefaults.notchHeightMode
     @AppStorage(SettingsKey.customNotchHeight) private var customNotchHeight = SettingsDefaults.customNotchHeight
+
+    private var currentScreen: NSScreen { ScreenDetector.preferredScreen }
+    private var currentScreenHasNotch: Bool { ScreenDetector.screenHasNotch(currentScreen) }
+    private var currentCollapsedCoreWidth: CGFloat {
+        NotchWidthMetrics.collapsedCoreWidth(
+            notchW: ScreenDetector.notchWidth(for: currentScreen),
+            hasNotch: currentScreenHasNotch,
+            notchlessCollapsedWidth: notchlessCollapsedWidth
+        )
+    }
+    private var currentCollapsedPanelWidth: CGFloat {
+        let notchHeight = ScreenDetector.topBarHeight(for: currentScreen)
+        let mascotSize = min(27, notchHeight - 6)
+        let compactWingWidth = mascotSize + 14
+        let toolExtra: CGFloat = showToolStatus ? (currentScreenHasNotch ? currentScreen.frame.width * 0.03 : currentScreen.frame.width * 0.04) : 0
+        return currentCollapsedCoreWidth + compactWingWidth * 2 + toolExtra
+    }
+    private var maxHoverPreviewWidth: CGFloat {
+        min(NotchWidthMetrics.maxHoverPreviewWidthLimit, currentScreen.frame.width - 40)
+    }
+    private var hoverPreviewRange: ClosedRange<Double> {
+        let lowerWidth = min(maxHoverPreviewWidth, max(NotchWidthMetrics.minHoverPreviewWidthLimit, currentCollapsedPanelWidth))
+        let lower = Double(lowerWidth)
+        let upper = Double(max(maxHoverPreviewWidth, lowerWidth))
+        return lower...upper
+    }
 
     private var notchHeightMode: Binding<NotchHeightMode> {
         Binding(
@@ -817,19 +844,48 @@ private struct AppearancePage: View {
                     Text(l10n["max_visible_sessions"])
                     Text(l10n["max_visible_sessions_desc"])
                 }
+                if currentScreenHasNotch {
+                    LabeledContent {
+                        Text(l10n["collapsed_width_auto_notch"])
+                            .foregroundStyle(.secondary)
+                    } label: {
+                        Text(l10n["collapsed_width"])
+                        Text(l10n["collapsed_width_auto_notch_desc"])
+                    }
+                } else {
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text(l10n["collapsed_width"])
+                            Spacer()
+                            Text("\(Int(currentCollapsedCoreWidth.rounded()))pt")
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                        Slider(value: Binding(
+                            get: { Double(notchlessCollapsedWidth) },
+                            set: { newValue in
+                                notchlessCollapsedWidth = Int(newValue)
+                                hoverPreviewWidthLimit = max(hoverPreviewWidthLimit, Int(currentCollapsedPanelWidth.rounded()))
+                            }
+                        ), in: Double(NotchWidthMetrics.minNotchlessCollapsedWidth)...Double(NotchWidthMetrics.maxNotchlessCollapsedWidth), step: 10)
+                        Text(l10n["collapsed_width_desc"])
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(l10n["collapsed_width_scale"])
+                        Text(l10n["hover_preview_width_limit"])
                         Spacer()
-                        Text("\(collapsedWidthScale)%")
+                        Text("\(max(hoverPreviewWidthLimit, Int(currentCollapsedPanelWidth.rounded())))pt")
                             .foregroundStyle(.secondary)
                             .monospacedDigit()
                     }
                     Slider(value: Binding(
-                        get: { Double(collapsedWidthScale) },
-                        set: { collapsedWidthScale = Int($0) }
-                    ), in: 50...150, step: 10)
-                    Text(l10n["collapsed_width_scale_desc"])
+                        get: { Double(max(hoverPreviewWidthLimit, Int(currentCollapsedPanelWidth.rounded()))) },
+                        set: { hoverPreviewWidthLimit = max(Int($0), Int(currentCollapsedPanelWidth.rounded())) }
+                    ), in: hoverPreviewRange, step: 10)
+                    Text(l10n["hover_preview_width_limit_desc"])
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
