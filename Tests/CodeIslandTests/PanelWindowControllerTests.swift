@@ -30,4 +30,13 @@ final class PanelWindowControllerTests: XCTestCase {
         XCTAssertEqual(frames.incoming.origin.y, newFrame.origin.y + 30)
         XCTAssertEqual(frames.incoming.size, newFrame.size)
     }
+
+    func testPanelWidthUsesScreenLongEdge() {
+        let size = PanelWindowController.panelSize(
+            maxVisibleSessions: 99,
+            screenFrame: NSRect(x: 0, y: 0, width: 1512, height: 982)
+        )
+
+        XCTAssertEqual(size.width, 1512)
+    }
 }

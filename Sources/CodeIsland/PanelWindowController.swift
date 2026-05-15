@@ -116,12 +116,18 @@ class PanelWindowController: NSObject, NSWindowDelegate {
         )
     }
 
+    nonisolated static func panelSize(maxVisibleSessions: Int, screenFrame: NSRect) -> NSSize {
+        let maxSessions = CGFloat(max(2, maxVisibleSessions))
+        let height = max(300, maxSessions * 90 + 60)
+        let width = max(screenFrame.width, screenFrame.height)
+        return NSSize(width: width, height: height)
+    }
+
     private func panelSize(for screen: NSScreen) -> NSSize {
-        let maxSessions = CGFloat(max(2, UserDefaults.standard.integer(forKey: SettingsKey.maxVisibleSessions)))
-        let maxH = max(300, maxSessions * 90 + 60)
-        let screenW = screen.frame.width
-        let width = min(620, screenW - 40)
-        return NSSize(width: width, height: maxH)
+        Self.panelSize(
+            maxVisibleSessions: UserDefaults.standard.integer(forKey: SettingsKey.maxVisibleSessions),
+            screenFrame: screen.frame
+        )
     }
 
     private var panelSize: NSSize {
@@ -285,7 +291,8 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             hasNotch: hasNotch,
             notchHeight: notchHeight,
             notchW: notchW,
-            screenWidth: screen.frame.width
+            screenWidth: screen.frame.width,
+            screenLongEdge: max(screen.frame.width, screen.frame.height)
         )
         let contentView = NotchHostingView(rootView: rootView)
         contentView.sizingOptions = []

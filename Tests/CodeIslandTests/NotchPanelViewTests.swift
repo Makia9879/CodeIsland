@@ -52,21 +52,21 @@ final class NotchPanelViewTests: XCTestCase {
             NotchWidthMetrics.hoverPreviewPanelWidth(
                 restingPanelWidth: 360,
                 hoverPreviewWidthLimit: 260,
-                screenWidth: 900
+                screenLongEdge: 900
             ),
             360,
             accuracy: 0.001
         )
     }
 
-    func testHoverPreviewWidthClampsToScreen() {
+    func testHoverPreviewWidthClampsToScreenLongEdge() {
         XCTAssertEqual(
             NotchWidthMetrics.hoverPreviewPanelWidth(
                 restingPanelWidth: 300,
-                hoverPreviewWidthLimit: 700,
-                screenWidth: 520
+                hoverPreviewWidthLimit: 2000,
+                screenLongEdge: 1512
             ),
-            480,
+            1512,
             accuracy: 0.001
         )
     }

@@ -807,7 +807,7 @@ private struct AppearancePage: View {
         return currentCollapsedCoreWidth + compactWingWidth * 2 + toolExtra
     }
     private var maxHoverPreviewWidth: CGFloat {
-        min(NotchWidthMetrics.maxHoverPreviewWidthLimit, currentScreen.frame.width - 40)
+        max(currentScreen.frame.width, currentScreen.frame.height)
     }
     private var hoverPreviewRange: ClosedRange<Double> {
         let lowerWidth = min(maxHoverPreviewWidth, max(NotchWidthMetrics.minHoverPreviewWidthLimit, currentCollapsedPanelWidth))

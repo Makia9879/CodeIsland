@@ -5,7 +5,6 @@ enum NotchWidthMetrics {
     static let minNotchlessCollapsedWidth: CGFloat = 140
     static let maxNotchlessCollapsedWidth: CGFloat = 360
     static let minHoverPreviewWidthLimit: CGFloat = 220
-    static let maxHoverPreviewWidthLimit: CGFloat = 620
 
     static func collapsedCoreWidth(
         notchW: CGFloat,
@@ -23,13 +22,13 @@ enum NotchWidthMetrics {
     static func hoverPreviewPanelWidth(
         restingPanelWidth: CGFloat,
         hoverPreviewWidthLimit: Int,
-        screenWidth: CGFloat
+        screenLongEdge: CGFloat
     ) -> CGFloat {
-        let screenMax = max(restingPanelWidth, screenWidth - 40)
+        let screenMax = max(restingPanelWidth, screenLongEdge)
         let limit = clamp(
             CGFloat(hoverPreviewWidthLimit),
             min: minHoverPreviewWidthLimit,
-            max: min(maxHoverPreviewWidthLimit, screenMax)
+            max: screenMax
         )
         return min(max(restingPanelWidth, limit), screenMax)
     }
@@ -45,6 +44,7 @@ struct NotchPanelView: View {
     let notchHeight: CGFloat
     let notchW: CGFloat
     let screenWidth: CGFloat
+    let screenLongEdge: CGFloat
 
     @AppStorage(SettingsKey.contentFontSize) private var contentFontSize = SettingsDefaults.contentFontSize
     @AppStorage(SettingsKey.showAgentDetails) private var showAgentDetails = SettingsDefaults.showAgentDetails
@@ -98,20 +98,18 @@ struct NotchPanelView: View {
     /// Total panel width — adapts based on state and screen geometry
     private var panelWidth: CGFloat {
         let nw = collapsedCoreWidth
-        let maxWidth = min(620, screenWidth - 40)
         if showIdleIndicator { return idleHovered ? nw + compactWingWidth * 2 + 80 : nw + compactWingWidth * 2 }
         if !isActive { return hasNotch ? nw - 20 : nw }
-        if shouldShowExpanded { return min(max(nw + 200, 580), maxWidth) }
         let wing = compactWingWidth
         let extra: CGFloat = appState.status == .idle ? 0 : 20
         // Reserve space for tool status — proportional to screen width
         let toolExtra: CGFloat = displayedToolStatus ? (hasNotch ? screenWidth * 0.03 : screenWidth * 0.04) : 0
         let restingWidth = nw + wing * 2 + extra + toolExtra
-        if isHoverPreviewing {
+        if shouldShowExpanded || isHoverPreviewing {
             return NotchWidthMetrics.hoverPreviewPanelWidth(
                 restingPanelWidth: restingWidth,
                 hoverPreviewWidthLimit: hoverPreviewWidthLimit,
-                screenWidth: screenWidth
+                screenLongEdge: screenLongEdge
             )
         }
         return restingWidth
