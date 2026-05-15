@@ -75,18 +75,26 @@ brew install --cask codeisland
 
 ### Build from Source
 
-Requires **macOS 14+** and **Swift 5.9+**.
+Requires **macOS 14+** and **Xcode 15+**. The full Xcode toolchain is required;
+Command Line Tools alone can fail to build SwiftUI preview macros.
 
 ```bash
 git clone https://github.com/wxtsky/CodeIsland.git
 cd CodeIsland
 
 # Development (debug build + launch)
-swift build && ./.build/debug/CodeIsland
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift build
+./.build/debug/CodeIsland
 
 # Release (universal binary: Apple Silicon + Intel)
 ./build.sh
-open .build/release/CodeIsland.app
+open .build/dist/CodeIsland.app
+```
+
+If you build from source often, you can set Xcode as the default toolchain once:
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
 ## How It Works

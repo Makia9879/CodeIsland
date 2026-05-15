@@ -7,7 +7,7 @@ if [ -d /Applications/Xcode.app/Contents/Developer ]; then
 fi
 
 APP_NAME="CodeIsland"
-BUILD_DIR=".build/release"
+BUILD_DIR=".build/dist"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 ICON_CATALOG="Assets.xcassets"
 ICON_SOURCE="AppIcon.icon"
@@ -130,6 +130,7 @@ build_mac() {
     done
 
     ENTITLEMENTS="CodeIsland.entitlements"
+    APP_ENTITLEMENTS="$ENTITLEMENTS"
 
     # Use SIGN_ID env var, or auto-detect: prefer "Developer ID Application" for distribution,
     # fall back to any valid identity, then ad-hoc
@@ -142,6 +143,21 @@ build_mac() {
     if [ -z "$SIGN_ID" ]; then
         echo "No developer certificate found, using ad-hoc signing..."
         SIGN_ID="-"
+        APP_ENTITLEMENTS=".build/CodeIsland.ad-hoc.entitlements"
+        cat > "$APP_ENTITLEMENTS" <<'EOF'
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>com.apple.security.automation.apple-events</key>
+    <true/>
+    <key>com.apple.security.device.bluetooth</key>
+    <true/>
+    <key>com.apple.security.cs.disable-library-validation</key>
+    <true/>
+</dict>
+</plist>
+EOF
     fi
 
     echo "Code signing ($SIGN_ID)..."
@@ -161,7 +177,7 @@ build_mac() {
     codesign --force --options runtime --sign "$SIGN_ID" "$SPARKLE_FW"
 
     codesign --force --options runtime --sign "$SIGN_ID" "$APP_BUNDLE/Contents/Helpers/codeisland-bridge"
-    codesign --force --options runtime --sign "$SIGN_ID" --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
+    codesign --force --options runtime --sign "$SIGN_ID" --entitlements "$APP_ENTITLEMENTS" "$APP_BUNDLE"
 
     if [ "$NOTARIZE" = true ] && [[ "$SIGN_ID" == *"Developer ID"* ]]; then
         echo "Creating ZIP for notarization..."

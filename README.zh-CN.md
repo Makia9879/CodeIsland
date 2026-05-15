@@ -75,18 +75,26 @@ brew install --cask codeisland
 
 ### 从源码构建
 
-需要 **macOS 14+** 和 **Swift 5.9+**。
+需要 **macOS 14+** 和 **Xcode 15+**。必须使用完整 Xcode 工具链；
+仅安装 Command Line Tools 时，SwiftUI preview macro 可能无法编译。
 
 ```bash
 git clone https://github.com/wxtsky/CodeIsland.git
 cd CodeIsland
 
 # 开发模式（debug 构建 + 启动）
-swift build && ./.build/debug/CodeIsland
+DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer xcrun swift build
+./.build/debug/CodeIsland
 
 # 发布模式（通用二进制：Apple Silicon + Intel）
 ./build.sh
-open .build/release/CodeIsland.app
+open .build/dist/CodeIsland.app
+```
+
+如果经常从源码构建，也可以一次性把 Xcode 设为默认工具链：
+
+```bash
+sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
 ```
 
 ## 工作原理
