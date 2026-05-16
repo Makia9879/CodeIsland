@@ -248,6 +248,7 @@ class PanelWindowController: NSObject, NSWindowDelegate {
                 withObservationTracking {
                     _ = self?.appState.sessions
                     _ = self?.appState.surface
+                    _ = self?.appState.activeSessionCount
                 } onChange: {
                     Task { @MainActor in self?.updateVisibility() }
                 }
@@ -540,7 +541,10 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        if settings.hideWhenNoSession && appState.connectedSessionCount == 0 {
+        if shouldHidePanelForNoActiveSession(
+            hideWhenNoSession: settings.hideWhenNoSession,
+            activeSessionCount: appState.activeSessionCount
+        ) {
             panel.orderOut(nil)
             return
         }

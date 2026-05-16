@@ -120,6 +120,20 @@ final class NotchPanelViewTests: XCTestCase {
         XCTAssertEqual(count.total, 1)
     }
 
+    func testAutoHideUsesActiveSessionCountNotConnectedSessionCount() {
+        XCTAssertTrue(shouldHidePanelForNoActiveSession(
+            hideWhenNoSession: true,
+            activeSessionCount: 0
+        ))
+    }
+
+    func testAutoHideKeepsPanelVisibleForActiveSession() {
+        XCTAssertFalse(shouldHidePanelForNoActiveSession(
+            hideWhenNoSession: true,
+            activeSessionCount: 1
+        ))
+    }
+
     func testJumpFailureShakeSequenceUsesFastAlternatingOffsets() {
         XCTAssertEqual(JumpAnimationHelper.shakeSequence, [8, -8, 6, -6, 3, -3, 0])
     }

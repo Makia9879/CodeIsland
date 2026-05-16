@@ -85,7 +85,11 @@ struct NotchPanelView: View {
     }
     /// Whether the bar content should be visible (respects hideWhenNoSession)
     private var showBar: Bool {
-        isActive && !(hideWhenNoSession && appState.connectedSessionCount == 0)
+        shouldShowBarContent(
+            hasSessions: isActive,
+            hideWhenNoSession: hideWhenNoSession,
+            activeSessionCount: appState.activeSessionCount
+        )
     }
     private var shouldShowExpanded: Bool {
         showBar && appState.surface.isExpanded
@@ -564,6 +568,17 @@ private struct CompactRightWing: View {
 
 func compactSessionCountDisplay(activeSessionCount: Int, totalSessionCount: Int) -> (active: Int, total: Int) {
     (activeSessionCount, totalSessionCount)
+}
+
+func shouldHidePanelForNoActiveSession(hideWhenNoSession: Bool, activeSessionCount: Int) -> Bool {
+    hideWhenNoSession && activeSessionCount == 0
+}
+
+func shouldShowBarContent(hasSessions: Bool, hideWhenNoSession: Bool, activeSessionCount: Int) -> Bool {
+    hasSessions && !shouldHidePanelForNoActiveSession(
+        hideWhenNoSession: hideWhenNoSession,
+        activeSessionCount: activeSessionCount
+    )
 }
 
 /// Accent color for each tool category — shared between notch and non-notch views
