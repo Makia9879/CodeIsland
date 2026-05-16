@@ -123,14 +123,30 @@ final class NotchPanelViewTests: XCTestCase {
     func testAutoHideUsesActiveSessionCountNotConnectedSessionCount() {
         XCTAssertTrue(shouldHidePanelForNoActiveSession(
             hideWhenNoSession: true,
-            activeSessionCount: 0
+            activeSessionCount: 0,
+            surface: .collapsed
         ))
     }
 
     func testAutoHideKeepsPanelVisibleForActiveSession() {
         XCTAssertFalse(shouldHidePanelForNoActiveSession(
             hideWhenNoSession: true,
-            activeSessionCount: 1
+            activeSessionCount: 1,
+            surface: .collapsed
+        ))
+    }
+
+    func testAutoHideKeepsCompletionCardVisibleWithoutActiveSession() {
+        XCTAssertFalse(shouldHidePanelForNoActiveSession(
+            hideWhenNoSession: true,
+            activeSessionCount: 0,
+            surface: .completionCard(sessionId: "done")
+        ))
+        XCTAssertTrue(shouldShowBarContent(
+            hasSessions: true,
+            hideWhenNoSession: true,
+            activeSessionCount: 0,
+            surface: .completionCard(sessionId: "done")
         ))
     }
 

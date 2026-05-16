@@ -543,7 +543,8 @@ class PanelWindowController: NSObject, NSWindowDelegate {
 
         if shouldHidePanelForNoActiveSession(
             hideWhenNoSession: settings.hideWhenNoSession,
-            activeSessionCount: appState.activeSessionCount
+            activeSessionCount: appState.activeSessionCount,
+            surface: appState.surface
         ) {
             panel.orderOut(nil)
             return

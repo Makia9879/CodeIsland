@@ -13,6 +13,14 @@ enum IslandSurface: Equatable {
 
     var isExpanded: Bool { self != .collapsed }
 
+    /// Completion cards are transient notification surfaces. They must remain
+    /// visible even when the just-finished session has already become idle and
+    /// "hide when no active session" is enabled.
+    var shouldBypassNoActiveAutoHide: Bool {
+        if case .completionCard = self { return true }
+        return false
+    }
+
     /// 当前 surface 关联的 session ID（如有）
     var sessionId: String? {
         switch self {

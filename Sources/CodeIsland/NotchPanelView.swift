@@ -88,7 +88,8 @@ struct NotchPanelView: View {
         shouldShowBarContent(
             hasSessions: isActive,
             hideWhenNoSession: hideWhenNoSession,
-            activeSessionCount: appState.activeSessionCount
+            activeSessionCount: appState.activeSessionCount,
+            surface: appState.surface
         )
     }
     private var shouldShowExpanded: Bool {
@@ -570,14 +571,24 @@ func compactSessionCountDisplay(activeSessionCount: Int, totalSessionCount: Int)
     (activeSessionCount, totalSessionCount)
 }
 
-func shouldHidePanelForNoActiveSession(hideWhenNoSession: Bool, activeSessionCount: Int) -> Bool {
-    hideWhenNoSession && activeSessionCount == 0
+func shouldHidePanelForNoActiveSession(
+    hideWhenNoSession: Bool,
+    activeSessionCount: Int,
+    surface: IslandSurface
+) -> Bool {
+    hideWhenNoSession && activeSessionCount == 0 && !surface.shouldBypassNoActiveAutoHide
 }
 
-func shouldShowBarContent(hasSessions: Bool, hideWhenNoSession: Bool, activeSessionCount: Int) -> Bool {
+func shouldShowBarContent(
+    hasSessions: Bool,
+    hideWhenNoSession: Bool,
+    activeSessionCount: Int,
+    surface: IslandSurface
+) -> Bool {
     hasSessions && !shouldHidePanelForNoActiveSession(
         hideWhenNoSession: hideWhenNoSession,
-        activeSessionCount: activeSessionCount
+        activeSessionCount: activeSessionCount,
+        surface: surface
     )
 }
 
