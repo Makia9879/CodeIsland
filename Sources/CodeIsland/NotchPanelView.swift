@@ -85,7 +85,7 @@ struct NotchPanelView: View {
     }
     /// Whether the bar content should be visible (respects hideWhenNoSession)
     private var showBar: Bool {
-        isActive && !(hideWhenNoSession && appState.activeSessionCount == 0)
+        isActive && !(hideWhenNoSession && appState.connectedSessionCount == 0)
     }
     private var shouldShowExpanded: Bool {
         showBar && appState.surface.isExpanded
@@ -508,6 +508,18 @@ private struct CompactRightWing: View {
         return (cwd as NSString).lastPathComponent
     }
 
+    @ViewBuilder
+    private var sessionCountLabel: some View {
+        HStack(spacing: 1) {
+            Text("\(appState.activeSessionCount)")
+                .foregroundStyle(appState.activeSessionCount > 0 ? Color(red: 0.4, green: 1.0, blue: 0.5) : .white.opacity(0.9))
+            Text("/")
+                .foregroundStyle(.white.opacity(0.4))
+            Text("\(appState.idleSessionCount)")
+                .foregroundStyle(.white.opacity(0.9))
+        }
+    }
+
     var body: some View {
         HStack(spacing: 6) {
             if expanded {
@@ -530,35 +542,13 @@ private struct CompactRightWing: View {
                 }
 
                 if showToolStatus {
-                    // Detailed mode: session count (project name is shown in center on non-notch)
-                    HStack(spacing: 1) {
-                        let active = appState.activeSessionCount
-                        let total = appState.totalSessionCount
-                        if active > 0 {
-                            Text("\(active)")
-                                .foregroundStyle(Color(red: 0.4, green: 1.0, blue: 0.5))
-                            Text("/")
-                                .foregroundStyle(.white.opacity(0.4))
-                        }
-                        Text("\(total)")
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                    // Detailed mode: active / idle session count (project name is shown in center on non-notch)
+                    sessionCountLabel
+                        .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 } else {
-                    // Simple mode: original session count only
-                    HStack(spacing: 1) {
-                        let active = appState.activeSessionCount
-                        let total = appState.totalSessionCount
-                        if active > 0 {
-                            Text("\(active)")
-                                .foregroundStyle(Color(red: 0.4, green: 1.0, blue: 0.5))
-                            Text("/")
-                                .foregroundStyle(.white.opacity(0.4))
-                        }
-                        Text("\(total)")
-                            .foregroundStyle(.white.opacity(0.9))
-                    }
-                    .font(.system(size: 13, weight: .bold, design: .monospaced))
+                    // Simple mode: active / idle session count
+                    sessionCountLabel
+                        .font(.system(size: 13, weight: .bold, design: .monospaced))
                 }
             }
         }

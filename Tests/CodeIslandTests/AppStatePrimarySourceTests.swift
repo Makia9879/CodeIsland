@@ -1,4 +1,5 @@
 import XCTest
+import Darwin
 @testable import CodeIsland
 import CodeIslandCore
 
@@ -79,5 +80,63 @@ final class AppStatePrimarySourceTests: XCTestCase {
 
         XCTAssertEqual(appState.primarySource, "gemini",
             "When at least one session is running, surface that source not the user default")
+    }
+
+    func testConnectedSessionCountIgnoresIdleHistoryWithoutLiveProcess() {
+        let appState = AppState()
+
+        var stale = SessionSnapshot()
+        stale.source = "claude"
+        stale.status = .idle
+        appState.sessions["stale"] = stale
+
+        var liveIdle = SessionSnapshot()
+        liveIdle.source = "codex"
+        liveIdle.status = .idle
+        liveIdle.cliPid = getpid()
+        appState.sessions["live-idle"] = liveIdle
+
+        var running = SessionSnapshot()
+        running.source = "gemini"
+        running.status = .running
+        appState.sessions["running"] = running
+
+        appState.refreshDerivedState()
+
+        XCTAssertEqual(appState.connectedSessionCount, 2)
+        XCTAssertEqual(appState.activeSessionCount, 1)
+        XCTAssertEqual(appState.idleSessionCount, 2)
+        XCTAssertEqual(appState.totalSessionCount, 3)
+    }
+
+    func testCleanupExitedSessionsRemovesOnlyDisconnectedIdleSessions() {
+        let appState = AppState()
+
+        var stale = SessionSnapshot()
+        stale.source = "claude"
+        stale.status = .idle
+        appState.sessions["stale"] = stale
+
+        var liveIdle = SessionSnapshot()
+        liveIdle.source = "codex"
+        liveIdle.status = .idle
+        liveIdle.cliPid = getpid()
+        appState.sessions["live-idle"] = liveIdle
+
+        var running = SessionSnapshot()
+        running.source = "gemini"
+        running.status = .running
+        appState.sessions["running"] = running
+
+        let removed = appState.cleanupExitedSessions()
+
+        XCTAssertEqual(removed, 1)
+        XCTAssertNil(appState.sessions["stale"])
+        XCTAssertNotNil(appState.sessions["live-idle"])
+        XCTAssertNotNil(appState.sessions["running"])
+        XCTAssertEqual(appState.connectedSessionCount, 2)
+        XCTAssertEqual(appState.activeSessionCount, 1)
+        XCTAssertEqual(appState.idleSessionCount, 1)
+        XCTAssertEqual(appState.totalSessionCount, 2)
     }
 }

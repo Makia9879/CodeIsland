@@ -813,6 +813,8 @@ final class AppState {
     private(set) var status: AgentStatus = .idle
     private(set) var primarySource: String = "claude"
     private(set) var activeSessionCount: Int = 0
+    private(set) var idleSessionCount: Int = 0
+    private(set) var connectedSessionCount: Int = 0
     private(set) var totalSessionCount: Int = 0
 
     var currentTool: String? {
@@ -857,6 +859,7 @@ final class AppState {
     /// Call after any mutation to `sessions` or session status.
     func refreshDerivedState() {
         let summary = deriveSessionSummary(from: sessions)
+        let connected = deriveConnectedSessionCount()
         // Whenever no session is actively working, honor the user-configured
         // default mascot. Covers both "no sessions at all" (#102) and "all
         // sessions idle" (#149) — without this, a user who sets the default
@@ -873,8 +876,52 @@ final class AppState {
         if status != summary.status { status = summary.status }
         if primarySource != effectiveSource { primarySource = effectiveSource }
         if activeSessionCount != summary.activeSessionCount { activeSessionCount = summary.activeSessionCount }
+        let idle = summary.totalSessionCount - summary.activeSessionCount
+        if idleSessionCount != idle { idleSessionCount = idle }
+        if connectedSessionCount != connected { connectedSessionCount = connected }
         if totalSessionCount != summary.totalSessionCount { totalSessionCount = summary.totalSessionCount }
         ESP32StatePublisher.shared.notifyDirty()
+    }
+
+    private func deriveConnectedSessionCount() -> Int {
+        let runningBundleIds = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+        return sessions.reduce(0) { count, entry in
+            count + (isSessionConnected(sessionId: entry.key, session: entry.value, runningBundleIds: runningBundleIds) ? 1 : 0)
+        }
+    }
+
+    private func isSessionConnected(
+        sessionId: String,
+        session: SessionSnapshot,
+        runningBundleIds: Set<String>
+    ) -> Bool {
+        if session.status != .idle { return true }
+        if session.isRemote { return true }
+        if let monitor = processMonitors[sessionId]?.process, Self.isLiveProcess(monitor) { return true }
+        if let process = currentSessionProcessIdentity(for: sessionId), Self.isLiveProcess(process) { return true }
+        if session.isNativeAppMode,
+           let bundleId = session.termBundleId,
+           runningBundleIds.contains(bundleId) {
+            return true
+        }
+        return false
+    }
+
+    @discardableResult
+    func cleanupExitedSessions() -> Int {
+        let runningBundleIds = Set(NSWorkspace.shared.runningApplications.compactMap(\.bundleIdentifier))
+        let staleSessionIds = sessions.compactMap { sessionId, session -> String? in
+            guard !isSessionConnected(sessionId: sessionId, session: session, runningBundleIds: runningBundleIds) else {
+                return nil
+            }
+            return sessionId
+        }
+
+        for sessionId in staleSessionIds {
+            removeSession(sessionId)
+        }
+        refreshDerivedState()
+        return staleSessionIds.count
     }
 
     private func refreshProviderTitle(for trackedSessionId: String, providerSessionId: String? = nil) {

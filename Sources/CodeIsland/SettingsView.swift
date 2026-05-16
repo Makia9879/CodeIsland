@@ -359,6 +359,7 @@ private struct BehaviorPage: View {
     @AppStorage(SettingsKey.webhookEnabled) private var webhookEnabled: Bool = SettingsDefaults.webhookEnabled
     @AppStorage(SettingsKey.webhookURL) private var webhookURL: String = SettingsDefaults.webhookURL
     @AppStorage(SettingsKey.webhookEventFilter) private var webhookEventFilter: String = SettingsDefaults.webhookEventFilter
+    @State private var lastCleanupRemovedCount: Int?
 
     private var pluginSessionModeBinding: Binding<String> {
         Binding(
@@ -487,6 +488,15 @@ private struct BehaviorPage: View {
             }
 
             Section(l10n["sessions"]) {
+                Button {
+                    lastCleanupRemovedCount = appState?.cleanupExitedSessions() ?? 0
+                } label: {
+                    Label(l10n["cleanup_exited_sessions"], systemImage: "trash")
+                }
+                .disabled(appState == nil || appState?.sessions.isEmpty == true)
+                Text(cleanupExitedSessionsDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                 Picker(selection: $sessionTimeout) {
                     Text(l10n["no_cleanup"]).tag(0)
                     Text(l10n["10_minutes"]).tag(10)
@@ -526,6 +536,13 @@ private struct BehaviorPage: View {
             }
         }
         .formStyle(.grouped)
+    }
+
+    private var cleanupExitedSessionsDescription: String {
+        guard let lastCleanupRemovedCount else {
+            return l10n["cleanup_exited_sessions_desc"]
+        }
+        return String(format: l10n["cleanup_exited_sessions_removed"], lastCleanupRemovedCount)
     }
 }
 
