@@ -144,7 +144,7 @@ class PanelWindowController: NSObject, NSWindowDelegate {
     private var lastChosenScreenSignature = ""
     private var isAnimatingScreenHop = false
     private var dragStartMouseX: CGFloat?
-    private var dragStartPanelX: CGFloat?
+    private var dragStartOffset: CGFloat?
     private var isDraggingPanel = false
     private var localDragMonitor: Any?
     private var lastDisplayChoice = ""
@@ -451,20 +451,13 @@ class PanelWindowController: NSObject, NSWindowDelegate {
         let size = panelSize(for: screen)
         let screenFrame = screen.frame
         let centeredX = centeredX(for: size, screen: screen)
-        let dragOffset = SettingsManager.shared.allowHorizontalDrag
-            ? CGFloat(SettingsManager.shared.panelHorizontalOffset)
-            : 0
-        let x = clampedX(centeredX + dragOffset, panelWidth: size.width, on: screen)
+        let x = min(max(centeredX, screenFrame.minX), screenFrame.maxX - size.width)
         let y = screenFrame.maxY - size.height
         return NSRect(x: x, y: y, width: size.width, height: size.height)
     }
 
     private func centeredX(for size: NSSize, screen: NSScreen) -> CGFloat {
         screen.frame.midX - size.width / 2
-    }
-
-    private func clampedX(_ desiredX: CGFloat, panelWidth: CGFloat, on screen: NSScreen) -> CGFloat {
-        min(max(desiredX, screen.frame.minX), screen.frame.maxX - panelWidth)
     }
 
     private func setupHorizontalDragMonitor() {
@@ -478,33 +471,27 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             case .leftMouseDown:
                 if event.window === panel {
                     self.dragStartMouseX = NSEvent.mouseLocation.x
-                    self.dragStartPanelX = panel.frame.origin.x
+                    self.dragStartOffset = CGFloat(SettingsManager.shared.panelHorizontalOffset)
                     self.isDraggingPanel = false
                 }
             case .leftMouseDragged:
                 if let startMouseX = self.dragStartMouseX,
-                   let startPanelX = self.dragStartPanelX {
+                   let startOffset = self.dragStartOffset {
                     let deltaX = NSEvent.mouseLocation.x - startMouseX
                     // Only start moving after exceeding threshold
                     if !self.isDraggingPanel {
                         guard abs(deltaX) > dragThreshold else { return event }
                         self.isDraggingPanel = true
                     }
-                    let screen = self.chosenScreen()
-                    let size = panel.frame.size
-                    let newX = self.clampedX(startPanelX + deltaX, panelWidth: size.width, on: screen)
-                    let fixedY = screen.frame.maxY - size.height
-                    panel.setFrameOrigin(NSPoint(x: newX, y: fixedY))
+                    SettingsManager.shared.panelHorizontalOffset = Double(startOffset + deltaX)
                 }
             case .leftMouseUp:
-                if self.isDraggingPanel, let panel = self.panel {
-                    let screen = self.chosenScreen()
-                    let size = panel.frame.size
-                    let offset = panel.frame.origin.x - self.centeredX(for: size, screen: screen)
-                    SettingsManager.shared.panelHorizontalOffset = Double(offset)
+                if self.isDraggingPanel, let startMouseX = self.dragStartMouseX,
+                   let startOffset = self.dragStartOffset {
+                    SettingsManager.shared.panelHorizontalOffset = Double(startOffset + NSEvent.mouseLocation.x - startMouseX)
                 }
                 self.dragStartMouseX = nil
-                self.dragStartPanelX = nil
+                self.dragStartOffset = nil
                 self.isDraggingPanel = false
             default:
                 break

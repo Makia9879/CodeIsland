@@ -33,6 +33,15 @@ enum NotchWidthMetrics {
         return min(max(restingPanelWidth, limit), screenMax)
     }
 
+    static func horizontalContentOffset(
+        requestedOffset: CGFloat,
+        contentWidth: CGFloat,
+        screenWidth: CGFloat
+    ) -> CGFloat {
+        let maxOffset = max(0, (screenWidth - contentWidth) / 2)
+        return clamp(requestedOffset, min: -maxOffset, max: maxOffset)
+    }
+
     private static func clamp(_ value: CGFloat, min minValue: CGFloat, max maxValue: CGFloat) -> CGFloat {
         Swift.max(minValue, Swift.min(value, maxValue))
     }
@@ -55,6 +64,8 @@ struct NotchPanelView: View {
     @AppStorage(SettingsKey.hoverPreviewWidthLimit) private var hoverPreviewWidthLimit = SettingsDefaults.hoverPreviewWidthLimit
     @AppStorage(SettingsKey.hapticOnHover) private var hapticOnHover = SettingsDefaults.hapticOnHover
     @AppStorage(SettingsKey.hapticIntensity) private var hapticIntensity = SettingsDefaults.hapticIntensity
+    @AppStorage(SettingsKey.allowHorizontalDrag) private var allowHorizontalDrag = SettingsDefaults.allowHorizontalDrag
+    @AppStorage(SettingsKey.panelHorizontalOffset) private var panelHorizontalOffset = SettingsDefaults.panelHorizontalOffset
 
     /// Delayed hover: prevents accidental expansion when mouse passes through
     @State private var hoverTimer: Timer?
@@ -113,6 +124,15 @@ struct NotchPanelView: View {
             )
         }
         return restingWidth
+    }
+
+    private var horizontalContentOffset: CGFloat {
+        guard allowHorizontalDrag else { return 0 }
+        return NotchWidthMetrics.horizontalContentOffset(
+            requestedOffset: CGFloat(panelHorizontalOffset),
+            contentWidth: panelWidth,
+            screenWidth: screenWidth
+        )
     }
 
     var body: some View {
@@ -233,6 +253,7 @@ struct NotchPanelView: View {
                 .fill(.black)
             )
             .offset(y: curtainOffset)
+            .offset(x: horizontalContentOffset)
             .opacity(curtainOpacity)
             .onChange(of: showToolStatus) { _, newValue in
                 // Phase 1: entire bar slides up and fades out

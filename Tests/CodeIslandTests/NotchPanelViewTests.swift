@@ -71,6 +71,40 @@ final class NotchPanelViewTests: XCTestCase {
         )
     }
 
+    func testHorizontalContentOffsetWorksWhenPanelWindowIsFullScreenWidth() {
+        XCTAssertEqual(
+            NotchWidthMetrics.horizontalContentOffset(
+                requestedOffset: 120,
+                contentWidth: 300,
+                screenWidth: 1920
+            ),
+            120,
+            accuracy: 0.001
+        )
+    }
+
+    func testHorizontalContentOffsetClampsToKeepIslandVisible() {
+        XCTAssertEqual(
+            NotchWidthMetrics.horizontalContentOffset(
+                requestedOffset: 1000,
+                contentWidth: 300,
+                screenWidth: 1920
+            ),
+            810,
+            accuracy: 0.001
+        )
+
+        XCTAssertEqual(
+            NotchWidthMetrics.horizontalContentOffset(
+                requestedOffset: -1000,
+                contentWidth: 300,
+                screenWidth: 1920
+            ),
+            -810,
+            accuracy: 0.001
+        )
+    }
+
     func testShouldTriggerJumpFailureFeedbackWhenAllAttemptsFail() {
         XCTAssertTrue(shouldTriggerJumpFailureFeedback([false, false, false]))
     }

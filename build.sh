@@ -103,20 +103,24 @@ build_mac() {
     install_name_tool -add_rpath "@executable_path/../../Frameworks" \
         "$APP_BUNDLE/Contents/Helpers/codeisland-bridge" 2>/dev/null || true
 
-    echo "Compiling app icon assets..."
-    xcrun actool \
-        --output-format human-readable-text \
-        --warnings \
-        --errors \
-        --notices \
-        --platform macosx \
-        --target-device mac \
-        --minimum-deployment-target 14.0 \
-        --app-icon AppIcon \
-        --output-partial-info-plist "$ICON_INFO_PLIST" \
-        --compile "$APP_BUNDLE/Contents/Resources" \
-        "$ICON_CATALOG" \
-        "$ICON_SOURCE"
+    if xcrun -find actool >/dev/null 2>&1; then
+        echo "Compiling app icon assets..."
+        xcrun actool \
+            --output-format human-readable-text \
+            --warnings \
+            --errors \
+            --notices \
+            --platform macosx \
+            --target-device mac \
+            --minimum-deployment-target 14.0 \
+            --app-icon AppIcon \
+            --output-partial-info-plist "$ICON_INFO_PLIST" \
+            --compile "$APP_BUNDLE/Contents/Resources" \
+            "$ICON_CATALOG" \
+            "$ICON_SOURCE"
+    else
+        echo "Skipping asset catalog compilation: actool not found."
+    fi
     cp "Sources/CodeIsland/Resources/AppIcon.icns" "$APP_BUNDLE/Contents/Resources/AppIcon.icns"
 
     # Copy SPM resource bundles into Contents/Resources/ (required for code signing)
