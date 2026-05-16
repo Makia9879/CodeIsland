@@ -113,6 +113,13 @@ final class NotchPanelViewTests: XCTestCase {
         XCTAssertFalse(shouldTriggerJumpFailureFeedback([false, true, false]))
     }
 
+    func testCompactSessionCountUsesTotalAsDenominator() {
+        let count = compactSessionCountDisplay(activeSessionCount: 1, totalSessionCount: 1)
+
+        XCTAssertEqual(count.active, 1)
+        XCTAssertEqual(count.total, 1)
+    }
+
     func testJumpFailureShakeSequenceUsesFastAlternatingOffsets() {
         XCTAssertEqual(JumpAnimationHelper.shakeSequence, [8, -8, 6, -6, 3, -3, 0])
     }

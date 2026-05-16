@@ -510,12 +510,16 @@ private struct CompactRightWing: View {
 
     @ViewBuilder
     private var sessionCountLabel: some View {
+        let count = compactSessionCountDisplay(
+            activeSessionCount: appState.activeSessionCount,
+            totalSessionCount: appState.totalSessionCount
+        )
         HStack(spacing: 1) {
-            Text("\(appState.activeSessionCount)")
+            Text("\(count.active)")
                 .foregroundStyle(appState.activeSessionCount > 0 ? Color(red: 0.4, green: 1.0, blue: 0.5) : .white.opacity(0.9))
             Text("/")
                 .foregroundStyle(.white.opacity(0.4))
-            Text("\(appState.idleSessionCount)")
+            Text("\(count.total)")
                 .foregroundStyle(.white.opacity(0.9))
         }
     }
@@ -542,11 +546,11 @@ private struct CompactRightWing: View {
                 }
 
                 if showToolStatus {
-                    // Detailed mode: active / idle session count (project name is shown in center on non-notch)
+                    // Detailed mode: active / total session count (project name is shown in center on non-notch)
                     sessionCountLabel
                         .font(.system(size: 12, weight: .semibold, design: .monospaced))
                 } else {
-                    // Simple mode: active / idle session count
+                    // Simple mode: active / total session count
                     sessionCountLabel
                         .font(.system(size: 13, weight: .bold, design: .monospaced))
                 }
@@ -557,6 +561,10 @@ private struct CompactRightWing: View {
 }
 
 // MARK: - Tool Status Helpers
+
+func compactSessionCountDisplay(activeSessionCount: Int, totalSessionCount: Int) -> (active: Int, total: Int) {
+    (activeSessionCount, totalSessionCount)
+}
 
 /// Accent color for each tool category — shared between notch and non-notch views
 private func toolStatusColor(_ tool: String) -> Color {
