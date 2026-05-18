@@ -10,6 +10,8 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     var panelController: PanelWindowController?
     private var hookServer: HookServer?
     private var hookRecoveryTimer: Timer?
+    private var responsivenessActivity: NSObjectProtocol?
+    private var workspaceObserverTokens: [NSObjectProtocol] = []
     private var lastHookCheck: Date = .distantPast
     private var globalShortcutMonitor: Any?
     private var localShortcutMonitor: Any?
@@ -18,6 +20,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         ProcessInfo.processInfo.disableAutomaticTermination("CodeIsland must stay running")
         ProcessInfo.processInfo.disableSuddenTermination()
+        responsivenessActivity = ProcessInfo.processInfo.beginActivity(
+            options: [.userInitiatedAllowingIdleSystemSleep],
+            reason: "Keep CodeIsland hook server and session discovery responsive while idle"
+        )
         // Pre-set app icon so Dock/menu bar use the packaged bundle icon.
         NSApp.applicationIconImage = SettingsWindowController.bundleAppIcon()
         SettingsWindowController.shared.appState = appState
@@ -80,7 +86,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.checkAndRepairHooks()
             }
         }
-        NSWorkspace.shared.notificationCenter.addObserver(
+        let activationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didActivateApplicationNotification,
             object: nil, queue: .main
         ) { [weak self] _ in
@@ -88,6 +94,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.checkAndRepairHooks()
             }
         }
+        workspaceObserverTokens.append(activationObserver)
 
         #if DEBUG
         // Preview mode: inject mock data if --preview flag is present
@@ -132,6 +139,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         hookRecoveryTimer?.invalidate()
+        let center = NSWorkspace.shared.notificationCenter
+        for token in workspaceObserverTokens {
+            center.removeObserver(token)
+        }
+        workspaceObserverTokens.removeAll()
+        if let responsivenessActivity {
+            ProcessInfo.processInfo.endActivity(responsivenessActivity)
+            self.responsivenessActivity = nil
+        }
         teardownGlobalShortcut()
         appState.saveSessions()
         RemoteManager.shared.shutdown()
