@@ -245,14 +245,20 @@ class PanelWindowController: NSObject, NSWindowDelegate {
         // Observe session changes via @Observable tracking
         sessionObservationTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                withObservationTracking {
-                    _ = self?.appState.sessions
-                    _ = self?.appState.surface
-                    _ = self?.appState.activeSessionCount
-                } onChange: {
-                    Task { @MainActor in self?.updateVisibility() }
+                self?.updateVisibility()
+                await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+                    withObservationTracking {
+                        _ = self?.appState.sessions
+                        _ = self?.appState.surface
+                        _ = self?.appState.activeSessionCount
+                    } onChange: {
+                        Task { @MainActor in
+                            self?.updateVisibility()
+                            continuation.resume()
+                        }
+                    }
                 }
-                try? await Task.sleep(for: .milliseconds(500))
+                await Task.yield()
             }
         }
 
@@ -550,7 +556,7 @@ class PanelWindowController: NSObject, NSWindowDelegate {
             return
         }
 
-        if !panel.isVisible {
+        if !panel.isVisible || appState.surface.isExpanded {
             panel.orderFrontRegardless()
         }
     }
